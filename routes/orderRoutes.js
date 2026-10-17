@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
-const { orderValidationRules, validate } = require('../middleware/validation');
+const { orderValidationRules, paginationValidationRules, validate } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 // Route to create a new order
@@ -18,6 +18,8 @@ router.get('/stats/overview',
 
 // Route to get all orders (admin)
 router.get('/',
+    paginationValidationRules,
+    validate,
     asyncHandler(orderController.getAllOrders)
 );
 

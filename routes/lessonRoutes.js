@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const lessonController = require('../controllers/lessonController');
-const { lessonValidationRules, validate } = require('../middleware/validation');
+const { lessonValidationRules, paginationValidationRules, validate } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 // Route to get all lessons with advanced filtering
 router.get('/', 
+    paginationValidationRules,
     lessonValidationRules.getLessons,
     validate,
     asyncHandler(lessonController.getAllLessons)
