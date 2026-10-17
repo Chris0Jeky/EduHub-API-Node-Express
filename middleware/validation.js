@@ -35,8 +35,11 @@ const lessonValidationRules = {
     ],
     
     getLessons: [
+        query('topic').optional().isString(),
+        query('location').optional().isString(),
         query('search').optional().isString().bail()
-            .isLength({ max: 200 }).withMessage('Search must not exceed 200 characters').trim(),
+            .isLength({ max: 200 }).withMessage('Search must not exceed 200 characters')
+            .not().contains('\0').withMessage('Search must not contain null bytes').trim(),
         query('sortBy').optional().isIn(['topic', 'location', 'price', 'spaces']).withMessage('Invalid sort field'),
         query('order').optional().isIn(['asc', 'desc']).withMessage('Order must be asc or desc'),
         query('minPrice').optional().isFloat({ min: 0 }).withMessage('Min price must be positive'),
@@ -48,6 +51,10 @@ const lessonValidationRules = {
 
 // Order validation rules
 const orderValidationRules = {
+    getOrders: [
+        query('status').optional().isString(),
+        query('paymentStatus').optional().isString()
+    ],
     createOrder: [
         body('name').isString().trim().notEmpty().withMessage('Name is required')
             .matches(/^[a-zA-Z\s]+$/).withMessage('Name must contain only letters and spaces'),
