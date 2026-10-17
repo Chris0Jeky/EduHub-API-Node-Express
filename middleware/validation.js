@@ -11,6 +11,18 @@ const validate = (req, res, next) => {
     next();
 };
 
+const paginationValidationRules = [
+    query('page').optional().custom(value =>
+        typeof value === 'string' && /^[1-9]\d*$/.test(value) && Number(value) <= 10001
+    ).withMessage('Page must be an integer between 1 and 10001'),
+    query('limit').optional().custom(value =>
+        typeof value === 'string' && /^[1-9]\d*$/.test(value) && Number(value) <= 100
+    ).withMessage('Limit must be an integer between 1 and 100'),
+    query('page').custom((value, { req }) =>
+        (Number(value ?? 1) - 1) * Number(req.query.limit ?? 20) <= 10000
+    ).withMessage('Pagination offset must not exceed 10000')
+];
+
 // Lesson validation rules
 const lessonValidationRules = {
     updateLesson: [
@@ -23,12 +35,14 @@ const lessonValidationRules = {
     ],
     
     getLessons: [
-        query('search').optional().isString().trim(),
+        query('search').optional().isString().bail()
+            .isLength({ max: 200 }).withMessage('Search must not exceed 200 characters').trim(),
         query('sortBy').optional().isIn(['topic', 'location', 'price', 'spaces']).withMessage('Invalid sort field'),
         query('order').optional().isIn(['asc', 'desc']).withMessage('Order must be asc or desc'),
         query('minPrice').optional().isFloat({ min: 0 }).withMessage('Min price must be positive'),
         query('maxPrice').optional().isFloat({ min: 0 }).withMessage('Max price must be positive'),
-        query('minSpaces').optional().isInt({ min: 0 }).withMessage('Min spaces must be non-negative')
+        query('minSpaces').optional().isString().bail()
+            .isInt({ min: 0, max: Number.MAX_SAFE_INTEGER }).withMessage('Min spaces must be a non-negative safe integer')
     ]
 };
 
@@ -47,6 +61,7 @@ const orderValidationRules = {
 
 module.exports = {
     validate,
+    paginationValidationRules,
     lessonValidationRules,
     orderValidationRules
 };

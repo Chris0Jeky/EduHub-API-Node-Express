@@ -5,7 +5,7 @@ RESTful API service for the EduHub After-School Lessons platform, built with Nod
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js (v14+)
+- Node.js (v18+)
 - MongoDB Atlas account
 - npm or yarn
 
@@ -90,6 +90,16 @@ CST3144-Coursework-FullstackDev-BackEnd/
 - `GET /api` - API documentation
 - `GET /api/health` - Health check
 
+### Listing limits
+
+`GET /api/lessons` and `GET /api/orders` accept positive integer `page`
+(default 1) and `limit` (default 20, maximum 100). The pagination offset
+`(page - 1) * limit` must not exceed 10,000. Invalid or structured pagination parameters return HTTP 400. Both count and find queries use `maxTimeMS: 1000`.
+
+Lesson `search` accepts at most 200 characters and matches case-insensitive
+literal text in topic, location and description. Leading and trailing whitespace
+is trimmed. Search combines with the other filters, including `minSpaces`.
+
 ## 🔧 Configuration
 
 ### Environment Variables
@@ -156,8 +166,11 @@ npm run dev
 ## 🧪 Testing
 
 ```bash
-# No tests configured yet
+# Sequential node:test regressions with in-memory MongoDB collections; no database required
 npm test
+
+# Run one issue's regressions
+node --test test/issue-5-search.test.js
 ```
 
 ## 📝 License status

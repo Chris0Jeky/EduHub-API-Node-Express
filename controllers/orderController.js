@@ -106,7 +106,6 @@ async function createOrder(req, res) {
         });
 
     } catch (err) {
-        await session.abortTransaction();
         if (err instanceof AppError) throw err;
         throw new AppError('Failed to create order', 500);
     } finally {
@@ -142,10 +141,10 @@ async function getAllOrders(req, res) {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     try {
-        const totalCount = await ordersCollection.countDocuments(filter);
+        const totalCount = await ordersCollection.countDocuments(filter, { maxTimeMS: 1000 });
         
         const orders = await ordersCollection
-            .find(filter)
+            .find(filter, { maxTimeMS: 1000 })
             .sort(sortOptions)
             .skip(skip)
             .limit(parseInt(limit))

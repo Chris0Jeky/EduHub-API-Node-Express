@@ -37,15 +37,15 @@ async function getAllLessons(req, res) {
 
     // Available spaces filter (handle both 'spaces' and 'space' fields)
     if (minSpaces) {
-        filter.$or = [
+        filter.$and = [{ $or: [
             { spaces: { $gte: parseInt(minSpaces) } },
             { space: { $gte: parseInt(minSpaces) } }
-        ];
+        ] }];
     }
 
     // Search filter (searches across multiple fields)
     if (search) {
-        const searchRegex = new RegExp(search, 'i');
+        const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
         filter.$or = [
             { topic: searchRegex },
             { location: searchRegex },
@@ -63,11 +63,11 @@ async function getAllLessons(req, res) {
 
     try {
         // Get total count for pagination
-        const totalCount = await lessonsCollection.countDocuments(filter);
+        const totalCount = await lessonsCollection.countDocuments(filter, { maxTimeMS: 1000 });
 
         // Fetch lessons with pagination
         const lessons = await lessonsCollection
-            .find(filter)
+            .find(filter, { maxTimeMS: 1000 })
             .sort(sortOptions)
             .skip(skip)
             .limit(parseInt(limit))
@@ -172,7 +172,7 @@ async function updateLesson(req, res) {
             { returnDocument: 'after' }
         );
 
-        if (!result.value) {
+        if (!result) {
             throw new AppError('Lesson not found', 404);
         }
 
@@ -180,7 +180,7 @@ async function updateLesson(req, res) {
             status: 'success',
             message: 'Lesson updated successfully',
             data: {
-                lesson: result.value
+                lesson: result
             }
         });
     } catch (err) {
