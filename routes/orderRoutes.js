@@ -19,6 +19,7 @@ router.get('/stats/overview',
 // Route to get all orders (admin)
 router.get('/',
     paginationValidationRules,
+    orderValidationRules.getOrders,
     validate,
     asyncHandler(orderController.getAllOrders)
 );
