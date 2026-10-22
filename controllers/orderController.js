@@ -1,4 +1,5 @@
 const { ObjectId } = require('mongodb');
+const { createHash } = require('node:crypto');
 const { getOrdersCollection } = require('../models/orderModel');
 const { getLessonsCollection } = require('../models/lessonModel');
 const { AppError } = require('../middleware/errorHandler');
@@ -11,6 +12,21 @@ async function createOrder(req, res) {
     const lessonsCollection = getLessonsCollection(db);
     const { name, phone, lessons } = req.body;
 
+    // Keys are global guest checkout capabilities; store only a digest, never the raw key.
+    const rawKey = req.get('Idempotency-Key');
+    const digest = value => createHash('sha256').update(value).digest('hex');
+    const checkoutKey = rawKey ? digest(rawKey) : undefined;
+    const checkoutFingerprint = checkoutKey ? digest(JSON.stringify({
+        name: name.trim(), phone: phone.trim(),
+        lessons: lessons.map(item => ({ lessonId: item.lessonId.toLowerCase(), quantity: Number(item.quantity) }))
+    })) : undefined;
+    const checkReplay = order => {
+        if (order.checkoutFingerprint !== checkoutFingerprint) {
+            throw new AppError('Idempotency key has already been used for a different checkout', 409);
+        }
+        return order;
+    };
+
     // Start a session for transaction
     const session = client.startSession();
 
@@ -18,6 +34,10 @@ async function createOrder(req, res) {
         let orderResult;
         
         await session.withTransaction(async () => {
+            if (checkoutKey) {
+                const existing = await ordersCollection.findOne({ checkoutKey }, { session });
+                if (existing) { orderResult = checkReplay(existing); return; }
+            }
             // Track total amount
             let totalAmount = 0;
             const lessonDetails = [];
@@ -78,6 +98,7 @@ async function createOrder(req, res) {
 
             // Create the order with enhanced details
             const orderData = {
+                ...(checkoutKey ? { checkoutKey, checkoutFingerprint } : {}),
                 name: name.trim(),
                 phone: phone.trim(),
                 lessons: lessonDetails,
@@ -93,6 +114,12 @@ async function createOrder(req, res) {
                 _id: insertResult.insertedId,
                 ...orderData
             };
+        }).catch(async err => {
+            if (checkoutKey && err.code === 11000) {
+                const existing = await ordersCollection.findOne({ checkoutKey });
+                if (existing) { orderResult = checkReplay(existing); return; }
+            }
+            throw err;
         });
 
         // Send confirmation response
@@ -100,7 +127,8 @@ async function createOrder(req, res) {
             status: 'success',
             message: 'Order created successfully',
             data: {
-                order: orderResult,
+                order: Object.fromEntries(Object.entries(orderResult).filter(([field]) =>
+                    !['checkoutKey', 'checkoutFingerprint'].includes(field))),
                 confirmationNumber: orderResult._id.toString().substr(-8).toUpperCase()
             }
         });

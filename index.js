@@ -118,6 +118,8 @@ const connectWithRetry = async () => {
             });
 
             const db = client.db();
+            // Must exist before accepting keyed requests; duplicate keys are transaction conflicts.
+            await db.collection('orders').createIndex({ checkoutKey: 1 }, { unique: true, sparse: true });
             console.log('✅ Connected to MongoDB Atlas');
 
             // Store db in app.locals for access in routes/controllers

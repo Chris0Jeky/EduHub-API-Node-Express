@@ -1,4 +1,4 @@
-const { body, param, query, validationResult } = require('express-validator');
+const { body, param, query, header, validationResult } = require('express-validator');
 const { AppError } = require('./errorHandler');
 
 // Validation middleware
@@ -64,6 +64,8 @@ const orderValidationRules = {
         query('paymentStatus').optional().isString()
     ],
     createOrder: [
+        header('Idempotency-Key').optional().matches(/^[A-Za-z0-9_-]{16,128}$/)
+            .withMessage('Idempotency-Key must contain 16 to 128 letters, digits, underscores or hyphens'),
         body('name').isString().trim().notEmpty().withMessage('Name is required')
             .matches(/^[a-zA-Z\s]+$/).withMessage('Name must contain only letters and spaces'),
         body('phone').isString().trim().notEmpty().withMessage('Phone is required')
