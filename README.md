@@ -100,6 +100,10 @@ Lesson `search` accepts at most 200 characters and matches case-insensitive
 literal text in topic, location and description. Leading and trailing whitespace
 is trimmed. Search combines with the other filters, including `minSpaces`.
 
+Lesson updates accept only `topic`, `location`, `price`, `space`, `spaces`,
+`description` and `image`. Unsupported fields (including MongoDB operator and
+dotted property names) return HTTP 400 before a database write.
+
 ## 🔧 Configuration
 
 ### Environment Variables

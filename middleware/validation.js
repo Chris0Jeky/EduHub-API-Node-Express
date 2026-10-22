@@ -24,9 +24,17 @@ const paginationValidationRules = [
 ];
 
 // Lesson validation rules
+const lessonUpdateFields = new Set([
+    'topic', 'location', 'price', 'space', 'spaces', 'description', 'image'
+]);
+
 const lessonValidationRules = {
     updateLesson: [
         param('id').isMongoId().withMessage('Invalid lesson ID'),
+        body().custom(value => value !== null && typeof value === 'object'
+            && !Array.isArray(value)
+            && Object.keys(value).every(field => lessonUpdateFields.has(field)))
+            .withMessage('Lesson updates must contain only supported fields'),
         body('spaces').optional().isInt({ min: 0 }).withMessage('Spaces must be a non-negative integer'),
         body('space').optional().isInt({ min: 0 }).withMessage('Space must be a non-negative integer'),
         body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
