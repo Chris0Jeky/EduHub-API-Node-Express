@@ -55,7 +55,8 @@ async function getAllLessons(req, res) {
 
     // Sorting
     const sortOptions = {
-        [sortBy]: order === 'desc' ? -1 : 1
+        [sortBy]: order === 'desc' ? -1 : 1,
+        _id: 1 // Keep tied values in the same order across independently fetched pages.
     };
 
     // Pagination

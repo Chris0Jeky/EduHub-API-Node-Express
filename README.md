@@ -94,7 +94,8 @@ CST3144-Coursework-FullstackDev-BackEnd/
 
 `GET /api/lessons` and `GET /api/orders` accept positive integer `page`
 (default 1) and `limit` (default 20, maximum 100). The pagination offset
-`(page - 1) * limit` must not exceed 10,000. Invalid or structured pagination parameters return HTTP 400. Both count and find queries use `maxTimeMS: 1000`.
+`(page - 1) * limit` must not exceed 10,000. Lesson ordering uses `_id` as a
+stable secondary key so equal sort values do not hide or duplicate records across pages. Invalid or structured pagination parameters return HTTP 400. Both count and find queries use `maxTimeMS: 1000`.
 
 Lesson `search` accepts at most 200 characters and matches case-insensitive
 literal text in topic, location and description. Leading and trailing whitespace
@@ -182,3 +183,44 @@ node --test test/issue-5-search.test.js
 No repository-wide open-source licence has been granted. This is coursework
 with contributor rights still to be confirmed, so reuse requires permission
 from the relevant rights holders.
+
+### Authoritative checkout and safe replay
+
+Only `POST /api/orders` should consume inventory. Browser carts must not reserve
+places through lesson PUTs. MongoDB must support transactions (replica set/Atlas).
+
+Clients may send `Idempotency-Key` (16–128 letters, digits, `_` or `-`; use a fresh
+cryptographically random UUID for each new checkout). Startup creates a unique
+sparse index on the stored SHA-256 checkout-key digest **before listening**. The
+key and the trimmed contact information plus ordered lesson IDs/quantities identify
+one immutable attempt. The key has global guest scope; it is not tied to a user or
+session and must be treated as a secret capability. It is not authentication. Do
+not choose a predictable key or reuse one across unrelated customers/attempts.
+
+A successful retry returns HTTP 201 with the original order, timestamps and
+confirmation without consuming stock again. Reusing a key with a different
+payload returns 409. Transaction failures roll back all lesson changes and do not
+consume the key, so the unchanged request may retry. Concurrent equal keys have
+one authoritative order, including when they reach the unique index together.
+Key digests/fingerprints are omitted from create/replay responses. Unkeyed legacy
+requests remain supported and intentionally create a new order per request.
+No TTL removes keys: replay protection lasts as long as the corresponding order
+is retained. Deleting order history also deletes its replay protection.
+
+This does not resolve existing issue #4: administrative lesson writes and order
+reads still lack authentication/authorization. Establish that access-control
+contract separately before exposing real student data. No payment processing or
+new identity model is introduced.
+
+The ordinary suite uses in-memory fixtures. To additionally run the real MongoDB
+transaction, rollback, unique-index, replay and concurrency regressions, point the
+explicit opt-in variable at a disposable **loopback-only** replica set:
+
+```bash
+EDUHUB_TEST_MONGODB_URI='mongodb://127.0.0.1:27917/?directConnection=true&replicaSet=eduhub-test' npm test
+```
+
+The integration test starts the actual API entrypoint in a uniquely named
+`eduhub_test_*` database and drops only that database at teardown. Without the
+variable, that integration test is reported as skipped; in-memory tests do not
+certify MongoDB transaction semantics. There is no separate build script.
